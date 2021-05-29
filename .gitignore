@@ -1,0 +1,12 @@
+.*
+!.gitignore
+
+writing_artifact.ipynb
+fonts/*
+test/*.odt
+background/*
+
+# Examples of background
+!background/1.jpg
+!background/2.jpg
+!background/6.jpg
