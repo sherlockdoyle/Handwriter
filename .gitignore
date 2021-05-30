@@ -1,6 +1,9 @@
 .*
 !.gitignore
 
+# Internal tests
+test2*
+
 writing_artifact.ipynb
 fonts/*
 test/*.odt

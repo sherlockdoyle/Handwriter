@@ -12,7 +12,7 @@ image = imgRGB = imgGray = np.ndarray
 def imshow(*img: image, scale: float = 2.5):
     for i, im in enumerate(img):
         cv2.imshow(
-            f"image{i}",
+            f'image{i}',
             cv2.resize(im, (int(im.shape[1]/scale), int(im.shape[0]/scale)))
         )
     while cv2.waitKey(0) != 27:
@@ -195,10 +195,7 @@ def get_white_rows(img: imgRGB) -> Tuple[List[int], imgGray]:
     """Get rows which are a boundary between white rows and text lines. Also return the internal binary image."""
     rows = [0]  # Initial header white section
     is_white = True
-    bin_img = cv2.adaptiveThreshold(
-        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY),
-        255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
+    bin_img = cv2.threshold(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 55, 255, cv2.THRESH_BINARY)[1]
     row_sum = bin_img.shape[1] * 255
     for i, row in enumerate(bin_img):
         new_iswhite = row.sum() >= row_sum
@@ -241,7 +238,7 @@ def draw_rows(img: imgRGB, rows: List[int], small_lines: List[int] = None) -> im
     return rowed_img
 
 
-def slant_rows(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
+def slant_block(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
     """Slant row1 to row2 upwards in img and put in dst."""
     w = img.shape[1]
     h = row2 - row1
@@ -253,7 +250,7 @@ def slant_rows(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
     dst[row1 - shift:row2, 0:w, :] &= slanted
 
 
-def compress_rows(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
+def slant_pers(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
     w = img.shape[1]
     h = row2 - row1
     seg = img[row1:row2]
@@ -268,7 +265,7 @@ def compress_rows(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
 def slant_lines(img: imgRGB, idx1: int, idx2: int, rows: List[int], shift: int, dst: imgRGB):
     iw = idx2-idx1
     for j in range(iw):
-        slant_rows(img, rows[(idx1+j)*2+1], rows[(idx1+j+1)*2], round(j/(iw-1)*shift), dst)
+        slant_block(img, rows[(idx1+j)*2+1], rows[(idx1+j+1)*2], round(j/(iw-1)*shift), dst)
 
 
 def perform_moves(img: imgRGB, rows: List[int], f: float = 1) -> imgRGB:
@@ -276,14 +273,12 @@ def perform_moves(img: imgRGB, rows: List[int], f: float = 1) -> imgRGB:
     l = len(rows)
     white[rows[1]:rows[2]] = img[rows[1]:rows[2]]
     white[rows[-2]:rows[-1]] = img[rows[-2]:rows[-1]]
-    for i in range(3, l-2, 2):
+    for i in range(3, l-2, 2):  # ignore first and last line
         shift = 0
         t = np.random.randint(3)
         if t == 1:
-            # -
             shift = -np.random.randint((rows[i]-rows[i-1])/2)
         elif t == 2:
-            # +
             shift = np.random.randint((rows[i+2]-rows[i+1])/2)
         shift = round(shift * f)
         white[rows[i]+shift:rows[i+1]+shift] = img[rows[i]:rows[i+1]]
@@ -304,11 +299,11 @@ def perform_slants(img: imgRGB, lines: List[int], rows: List[int], f: float = 1)
         prob = np.array([1, 2, 3, 1])
         t = 4 if i-start <= 2 else np.random.choice(list(range(4)), p=prob/prob.sum())
         if t == 0:
-            slant_rows(img, idx1, idx2, min(idx1-idx1_1, idx2-idx2_1)*f, white)
+            slant_block(img, idx1, idx2, round(min(idx1-idx1_1, idx2-idx2_1)*f), white)
         elif t == 1:
-            compress_rows(img, idx1, idx2, (idx2-(idx2_1+idx2_2)//2)*f, white)
+            slant_pers(img, idx1, idx2, round((idx2-(idx2_1+idx2_2)//2)*f), white)
         elif t == 2:
-            slant_lines(img, start, i+1, rows, (idx2-idx2_2)*f, white)
+            slant_lines(img, start, i+1, rows, round((idx2-idx2_2)*f), white)
         else:
             white[idx1:idx2] &= img[idx1:idx2]
         start = i+1
@@ -369,6 +364,7 @@ def get_back(code: background_code, paths: List[str], size: Tuple[int, int]) -> 
 
 
 def do_artifact(img: imgRGB, back: imgRGB, *,
+                text_shift_scale: int = 64,
                 text_shift_factor: float = 5.5,
                 line_slant_factor: float = 1,
                 line_move_factor: float = 1
@@ -377,8 +373,8 @@ def do_artifact(img: imgRGB, back: imgRGB, *,
     H, W, _ = img.shape
     mask, orig = extract_mask(img)
     orig = preprocess(orig)
-    img_dispx = perlin((H, W))
-    img_dispy = perlin((H, W))
+    img_dispx = perlin((H, W), (text_shift_scale, text_shift_scale))
+    img_dispy = perlin((H, W), (text_shift_scale, text_shift_scale))
     disp_img = displace_image(orig, -0.363636364*text_shift_factor*img_dispx, text_shift_factor*img_dispy)
     mistake_masked = mask_image(disp_img, mask)
     contours = extract_contours(mistake_masked)
@@ -415,10 +411,11 @@ parser.add_argument('-o', '--out', default='./out', help='path to output directo
 parser.add_argument('-f', '--output-format', help='format (extension) of output images', metavar='EXT')
 parser.add_argument('-b', '--background', default='./background',
                     help='path to directory with background images', metavar='DIR')
+parser.add_argument('-s', default=64, type=int, help='scale of text shift', metavar='VAL')
 parser.add_argument('-r', default=5.5, type=float, help='amount to shift the text randomly', metavar='VAL')
-parser.add_argument('-s', default=1, type=float,
+parser.add_argument('-k', default=1, type=float,
                     help='amount to slant lines, 0 means no slant, positive means upwards, negative means downwards', metavar='VAL')
-parser.add_argument('-m', default=1, type=float, help='amount to move lines up or down', metavar='VAL')
+parser.add_argument('-t', default=1, type=float, help='amount to move lines up or down', metavar='VAL')
 args = parser.parse_args()
 
 image_paths = []
@@ -446,9 +443,10 @@ for i in range(num_images):
         H, W, _ = img.shape
         back = get_back(background_codes[i], background_paths, (W, H))
         edited = do_artifact(img, back,
+                             text_shift_scale=args.s,
                              text_shift_factor=args.r,
-                             line_slant_factor=args.s,
-                             line_move_factor=args.m
+                             line_slant_factor=args.k,
+                             line_move_factor=args.t
                              )
 
         save_path, ext = os.path.splitext(os.path.basename(path))

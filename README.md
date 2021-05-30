@@ -5,7 +5,7 @@ Make writing easier!
 ## How to
 
 1. Download and install a [handwriting font](https://fonts.google.com/?category=Handwriting), or [create a font](#Creating-your-font) from your handwriting.
-2. Use a word processor like *Microsoft Word* or *LibreOffice Writer* to write to your heart's content. (Hint: Use colors. `#000000` for black, and `#082A5E` for blue works nicely.)
+2. Use a word processor like *Microsoft Word* or *LibreOffice Writer* to write to your heart's content with the handwriting font. (Hint: Use colors. `#000000` for black, and `#082A5E` for blue works nicely.)
 3. [Introduce some mistakes.](#Introducing-mistakes)
 4. Save each page as an image.
 
@@ -14,7 +14,7 @@ Make writing easier!
      ```bash
      pdftoppm -png pdf_file.pdf image_name -scale-to-x 1626 -scale-to-y 2300
      ```
-5. Transform the images to handwriting style.
+5. Transform the images to handwriting style. Requires *numpy* and *OpenCV*.
 
    ```bash
    python3 writing_artifact.py /path/to/image_name-*.png
@@ -41,7 +41,7 @@ This is yet another project to create handwritten-style documents digitally. You
 
 I prefer typing, like other like-minded individuals who might be interested in this project, or who know or uses the above links. And typing saves paper, saves trees, saves the planet; now I'm just being ambitious. What more, if you want to copy your answers from some source, not that I support cheating, typing is much easier (copy-paste).
 
-## Why another project?
+### Why another project?
 
 This project was inspired by [MyHandWriting](https://github.com/bannyvishwas2020/MyhandWriting), or rather, the developer's [Reddit post](https://www.reddit.com/r/Python/comments/g5bbss/my_professor_wants_hand_written_assignments_so_i/). However, that, or other projects above support only plain text, without any formatting. For instance, what if you want a table or just multiple columns?
 
@@ -51,7 +51,7 @@ This project achieves this in two steps. First, the properly formatted text is w
 python3 writing_artifact.py /path/to/pages.png
 ```
 
-The code above simulates different handwriting artifacts and places the text on a white (A4, preferably) page. This of course assumes that you don't have beautiful calligraphic handwriting.
+The code above simulates different handwriting artifacts and places the text on a white (A4, preferably) page. Several ideas were taken from the shortcomings of the above projects. This of course assumes that you don't have beautiful calligraphic handwriting.
 
 ## Steps taken
 
@@ -82,7 +82,7 @@ Install the font. Clicking on the saved font will install it on most platforms. 
 
 ### Write
 
-Use your favorite word processor to write whatever you want. Edit margins (usually reduce) to match your writing style. Make sure to use a white background and dark colors for writing. Do not use the red color as it is used to [mark mistakes](#Introducing-mistakes). The code makes these assumptions. If you're using tables, remove the borders. Change line spacing to 1.5 (recommended).
+Use your favorite word processor to write whatever you want. Don't forget to use the font you just installed. Edit margins (usually reduce) to match your writing style. Make sure to use a white background and dark colors for writing. Do not use the red color as it is used to [mark mistakes](#Introducing-mistakes). The code makes these assumptions. If you're using tables, remove the borders. Change line spacing to 1.5 (recommended).
 
 ### Introducing mistakes
 
@@ -133,7 +133,7 @@ The original text is slightly thin, but that's how my handwriting font is. So th
 
 As of now, all the letters look the same. However, in handwriting, there's some variation in every letter. One way is to use a randomized font. Alternately, we can randomly move the text a little with a noise map.
 ![Randomized text](img/randomized-text.png)
-There's two noise map here, one for each axis. The amount to move the text with these maps can be controlled with the `-r` option; `0` means no movement, other values move in the positive or negative direction.
+There's two noise map here, one for each axis. The amount to move the text with these maps can be controlled with the `-r` option; `0` means no movement, other values move in the positive or negative direction. The scale of the noise map can be controlled with the `-s` option; higher values mean a higher frequency of the noise. Experiment with this to match your font size.
 
 ### Striking the mistakes
 
@@ -151,7 +151,7 @@ The red lines show the rows, the blue lines are the selected ones. Sometimes, if
 
 In handwriting, we tend to have some lines closer to each other than others. In other words, we have varying line spacing. Using the rows of text found above, we move each line randomly up or down.
 ![Line spacing](img/line-spacing.png)
-The amount to move the lines in this step can be controlled with the `-m` option; `0` means no movement, other values move in the positive or negative direction.
+The amount to move the lines in this step can be controlled with the `-t` option; `0` means no movement, other values move in the positive or negative direction.
 
 ### Slanting lines
 
@@ -172,7 +172,7 @@ Note how the columns on the top move to the right. This is not an error, but the
 
 Instead, we use a vertical displacement map like the following to shrink the right side of the block.
 ![Vertical displacement map](img/displacement-map.png)
-This generates the slants as shown above with proper column alignment. The amount to slant the lines in this step can be controlled with the `-s` option; `0` means no movement, other values move in the positive (upward) or negative (downward) direction.
+This generates the slants as shown above with proper column alignment. The amount to slant the lines in this step can be controlled with the `-k` option; `0` means no movement, other values move in the positive (upward) or negative (downward) direction.
 
 ### Backgrounds
 
@@ -195,3 +195,11 @@ Once the background is read, it might have shadows. These shadows are used to fu
 Finally, the text is merged on the background, normalized, and saved.
 ![Final image](img/final.png)
 Here's how it looks before and after. If you use your handwriting, it'll look more realistic.
+
+## TODO
+
+1. Detect images (line drawing) and apply low-frequency noise to them to give a hand-drawn effect.
+2. Better strike out for mistakes.
+3. Second page's background will be the flipped variant of the first.
+4. The second page will have flipped bleed through text from the first page.
+5. Each line will have random horizontal movement.
