@@ -1,6 +1,7 @@
 # Handwriter
 
 Make writing easier!
+![Demo](img/demo.png)
 
 ## How to
 
@@ -15,14 +16,12 @@ Make writing easier!
      pdftoppm -png pdf_file.pdf image_name -scale-to-x 1626 -scale-to-y 2300
      ```
 5. Transform the images to handwriting style. Requires *numpy* and *OpenCV*.
-
    ```bash
    python3 writing_artifact.py /path/to/image_name-*.png
    ```
 
    The images are saved (by default) in the `./out/` folder.
 6. Change the edited images back to PDF.
-
    ```bash
    convert image_name-*_edited.png pdf_edited.pdf
    ```
@@ -46,7 +45,6 @@ I prefer typing, like other like-minded individuals who might be interested in t
 This project was inspired by [MyHandWriting](https://github.com/bannyvishwas2020/MyhandWriting), or rather, the developer's [Reddit post](https://www.reddit.com/r/Python/comments/g5bbss/my_professor_wants_hand_written_assignments_so_i/). However, that, or other projects above support only plain text, without any formatting. For instance, what if you want a table or just multiple columns?
 
 This project achieves this in two steps. First, the properly formatted text is written with a word processor, and each page is saved as an image. Then, the images are transformed in handwritten style with
-
 ```bash
 python3 writing_artifact.py /path/to/pages.png
 ```
@@ -145,13 +143,13 @@ The original strikes are generated with inverted colors for easier processing. I
 
 We go through each row of pixels in the image and check if it only consists of white rows or other colors too. This is used to divide the image into alternating white and text areas. We also select some of the lines based on their length, line spacing, etc.
 ![White rows](img/white-rows.png)
-The red lines show the rows, the blue lines are the selected ones. Sometimes, if two lines are too close, they might be detected as a single line. Try changing the line-height if so.
+The red lines show the rows, the blue lines are the selected ones. Sometimes, if two lines are too close, they might be detected as a single line. Try changing the line height if so.
 
 ### Change line spacing
 
-In handwriting, we tend to have some lines closer to each other than others. In other words, we have varying line spacing. Using the rows of text found above, we move each line randomly up or down.
+In handwriting, we tend to have some lines closer to each other than others. In other words, we have varying line spacing. Using the rows of text found above, we move each line randomly up or down. We also move each line randomly left or right a little so that every line doesn't start from the same position (column).
 ![Line spacing](img/line-spacing.png)
-The amount to move the lines in this step can be controlled with the `-t` option; `0` means no movement, other values move in the positive or negative direction.
+The amount to move the lines up or down in this step can be controlled with the `-t` option; `0` means no movement, other values move in the positive or negative direction.
 
 ### Slanting lines
 
@@ -174,6 +172,12 @@ Instead, we use a vertical displacement map like the following to shrink the rig
 ![Vertical displacement map](img/displacement-map.png)
 This generates the slants as shown above with proper column alignment. The amount to slant the lines in this step can be controlled with the `-k` option; `0` means no movement, other values move in the positive (upward) or negative (downward) direction.
 
+### Fading text
+
+When we write on a page, the text doesn't have the same opacity everywhere. Due to how the ink is soaked and dries, some text might appear lighter than the rest. Using a noise map, the text is faded randomly.
+![Fading text](img/faded-text.png)
+This makes parts of the text lighter depending on the lightness of the noise map. The lowest opacity of faded text can be controlled with the `-a` option; `0` means part of the text is not visible at all, `1` means no fading (fully opaque).
+
 ### Backgrounds
 
 Once we've sufficiently applied handwriting effects to the text, we need to place it on top of an (A4) paper texture. By default, the background images are read from the `./background` folder. You can change this with the `-b` or `--background` option.
@@ -194,12 +198,12 @@ Once the background is read, it might have shadows. These shadows are used to fu
 ![Background displacement](img/background-displace.png)
 Finally, the text is merged on the background, normalized, and saved.
 ![Final image](img/final.png)
-Here's how it looks before and after. If you use your handwriting, it'll look more realistic.
+Here's how it looks before and after (old picture, refer to the [top](#Handwriter) for how the latest version of the software performs). If you use your handwriting, it'll look more realistic.
 
 ## TODO
 
-1. Detect images (line drawing) and apply low-frequency noise to them to give a hand-drawn effect.
-2. Better strike out for mistakes.
-3. Second page's background will be the flipped variant of the first.
-4. The second page will have flipped bleed through text from the first page.
-5. Each line will have random horizontal movement.
+* [ ] Detect images (line drawing) and apply low-frequency noise to them to give a hand-drawn effect.
+* [ ] Better strike out for mistakes.
+* [ ] Second page's background will be the flipped variant of the first.
+* [ ] The second page will have flipped bleed through text from the first page.
+* [X] Each line will have random horizontal movement.

@@ -10,6 +10,7 @@ image = imgRGB = imgGray = np.ndarray
 
 
 def imshow(*img: image, scale: float = 2.5):
+    """Utility method to display one or more images."""
     for i, im in enumerate(img):
         cv2.imshow(
             f'image{i}',
@@ -109,6 +110,7 @@ def get_hull_and_rect(contours: List[np.ndarray]) -> Tuple[List[np.ndarray], Lis
 
 
 def get_avg_color(img: imgRGB) -> Tuple[int, int, int]:
+    """Get an image's average color."""
     mask = cv2.threshold(
         cv2.cvtColor(img, cv2.COLOR_BGR2GRAY),
         225, 255, cv2.THRESH_BINARY
@@ -153,6 +155,7 @@ def put_strikes(img: imgRGB, strike: imgRGB, hull: List[np.ndarray]) -> imgRGB:
 
 
 def perlin(shape, res=(64, 64)) -> imgGray:
+    """Generate a perlin noise image."""
     # TODO: Where did I find this code from?
     orig_shape = shape
     shape = np.ceil(shape[0] / res[0]) * res[0], np.ceil(shape[1] / res[1]) * res[1]
@@ -227,6 +230,7 @@ def get_n_shortest_line_idx(img: imgGray, white_rows: List[int], n: int) -> List
 
 
 def draw_rows(img: imgRGB, rows: List[int], small_lines: List[int] = None) -> imgRGB:
+    """Utility method to draw the text rows on the image."""
     w = img.shape[1]
     rowed_img = img.copy()
     for r in rows:
@@ -236,6 +240,32 @@ def draw_rows(img: imgRGB, rows: List[int], small_lines: List[int] = None) -> im
             r = rows[l*2+2]
             cv2.line(rowed_img, (0, r), (w, r), (255, 0, 0), 2)
     return rowed_img
+
+
+def perform_moves(img: imgRGB, w: int, rows: List[int], f: float = 1) -> imgRGB:
+    """Move each line vertically and horizontally."""
+    white = np.ones_like(img)*255
+    l = len(rows)
+    white[rows[1]:rows[2]] = img[rows[1]:rows[2]]
+    white[rows[-2]:rows[-1]] = img[rows[-2]:rows[-1]]
+    for i in range(3, l-2, 2):  # ignore first and last line
+        shiftY = 0
+        t = np.random.randint(3)
+        if t == 1:
+            shiftY = -np.random.randint((rows[i]-rows[i-1])/2)
+        elif t == 2:
+            shiftY = np.random.randint((rows[i+2]-rows[i+1])/2)
+        shiftY = round(shiftY * f)
+        shiftX = np.random.randint(-w/163, w/163+1)
+        if shiftX > 0:
+            white[rows[i]+shiftY:rows[i+1]+shiftY, :-shiftX] &= img[rows[i]:rows[i+1], shiftX:]
+        elif shiftX < 0:
+            white[rows[i]+shiftY:rows[i+1]+shiftY, -shiftX:] &= img[rows[i]:rows[i+1], :shiftX]
+        else:
+            white[rows[i]+shiftY:rows[i+1]+shiftY] &= img[rows[i]:rows[i+1]]
+        rows[i] += shiftY
+        rows[i+1] += shiftY
+    return white
 
 
 def slant_block(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
@@ -251,6 +281,7 @@ def slant_block(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
 
 
 def slant_pers(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
+    """Slant row1 to row2 with fake perspective, ie. only compresses the right side."""
     w = img.shape[1]
     h = row2 - row1
     seg = img[row1:row2]
@@ -263,31 +294,14 @@ def slant_pers(img: imgRGB, row1: int, row2: int, shift: int, dst: imgRGB):
 
 
 def slant_lines(img: imgRGB, idx1: int, idx2: int, rows: List[int], shift: int, dst: imgRGB):
+    """Slant rows from index idx1 to idx2, with each row slanted a little more than the one above."""
     iw = idx2-idx1
     for j in range(iw):
         slant_block(img, rows[(idx1+j)*2+1], rows[(idx1+j+1)*2], round(j/(iw-1)*shift), dst)
 
 
-def perform_moves(img: imgRGB, rows: List[int], f: float = 1) -> imgRGB:
-    white = np.ones_like(img)*255
-    l = len(rows)
-    white[rows[1]:rows[2]] = img[rows[1]:rows[2]]
-    white[rows[-2]:rows[-1]] = img[rows[-2]:rows[-1]]
-    for i in range(3, l-2, 2):  # ignore first and last line
-        shift = 0
-        t = np.random.randint(3)
-        if t == 1:
-            shift = -np.random.randint((rows[i]-rows[i-1])/2)
-        elif t == 2:
-            shift = np.random.randint((rows[i+2]-rows[i+1])/2)
-        shift = round(shift * f)
-        white[rows[i]+shift:rows[i+1]+shift] = img[rows[i]:rows[i+1]]
-        rows[i] += shift
-        rows[i+1] += shift
-    return white
-
-
 def perform_slants(img: imgRGB, lines: List[int], rows: List[int], f: float = 1) -> imgRGB:
+    """Slant blocks of lines of the image."""
     white = np.ones_like(img)*255
     start = 0
     for i in lines:
@@ -308,6 +322,14 @@ def perform_slants(img: imgRGB, lines: List[int], rows: List[int], f: float = 1)
             white[idx1:idx2] &= img[idx1:idx2]
         start = i+1
     return white
+
+
+def put_fading(img: imgRGB, fade: imgGray, f: float = 0.5) -> imgRGB:
+    fade -= fade.min()
+    fade /= fade.max()
+    # fade = 1-(1-fade)**2
+    fade += (1-fade) * f
+    return (255 - (255-img) * fade.reshape((fade.shape[0], fade.shape[1], 1))).astype(np.uint8)
 
 
 background_code = namedtuple('background_code', ['path_idx', 'merges', 'resize', 'rotate', 'flip'])
@@ -367,7 +389,8 @@ def do_artifact(img: imgRGB, back: imgRGB, *,
                 text_shift_scale: int = 64,
                 text_shift_factor: float = 5.5,
                 line_slant_factor: float = 1,
-                line_move_factor: float = 1
+                line_move_factor: float = 1,
+                text_fade_factor: float = 0.5
                 ) -> imgRGB:
     """Add the handwritten text artifacts."""
     H, W, _ = img.shape
@@ -390,13 +413,14 @@ def do_artifact(img: imgRGB, back: imgRGB, *,
         max(len(rows)//12+1, 3)
     ))
     # imshow(draw_rows(striked_img, rows, small_lines))
-    moved_img = perform_moves(striked_img, rows, line_move_factor)
+    moved_img = perform_moves(striked_img, W, rows, line_move_factor)
     slanted_img = perform_slants(moved_img, small_lines, rows, line_slant_factor)
+    faded_img = put_fading(slanted_img, perlin((H, W), (text_shift_scale, text_shift_scale)), text_fade_factor)
     norm_back = cv2.normalize(
         cv2.cvtColor(back, cv2.COLOR_BGR2GRAY),
         None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
     )
-    page_morphed_img = displace_image(slanted_img, None, 40-60*norm_back)
+    page_morphed_img = displace_image(faded_img, None, 40-60*norm_back)
     on_page_img = cv2.normalize(
         (back * (page_morphed_img/255)).astype(np.uint8),
         None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX
@@ -411,12 +435,17 @@ parser.add_argument('-o', '--out', default='./out', help='path to output directo
 parser.add_argument('-f', '--output-format', help='format (extension) of output images', metavar='EXT')
 parser.add_argument('-b', '--background', default='./background',
                     help='path to directory with background images', metavar='DIR')
+parser.add_argument('--seed', type=int, help='seed for random number generator, used if specified', metavar='VAL')
 parser.add_argument('-s', default=64, type=int, help='scale of text shift', metavar='VAL')
 parser.add_argument('-r', default=5.5, type=float, help='amount to shift the text randomly', metavar='VAL')
 parser.add_argument('-k', default=1, type=float,
                     help='amount to slant lines, 0 means no slant, positive means upwards, negative means downwards', metavar='VAL')
 parser.add_argument('-t', default=1, type=float, help='amount to move lines up or down', metavar='VAL')
+parser.add_argument('-a', default=0.5, type=float, help='lowest opacity for fading text', metavar='VAL')
 args = parser.parse_args()
+
+if args.seed is not None:
+    np.random.seed(args.seed)
 
 image_paths = []
 for path in args.images:
@@ -446,7 +475,8 @@ for i in range(num_images):
                              text_shift_scale=args.s,
                              text_shift_factor=args.r,
                              line_slant_factor=args.k,
-                             line_move_factor=args.t
+                             line_move_factor=args.t,
+                             text_fade_factor=args.a
                              )
 
         save_path, ext = os.path.splitext(os.path.basename(path))
