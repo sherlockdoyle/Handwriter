@@ -3,6 +3,12 @@
 Make writing easier!
 ![Demo](img/demo.png)
 
+## End of life
+
+This was a fun project, but I don't have the time to work on it anymore. Whatever has been implemented will remain, but I won't be adding new features, at least for now. Maybe I'll add some more cool features in the future.
+
+However, if you want to contribute, specially to complete the [TODO](#TODO)s below, feel free to fork the project and send me pull requests.
+
 ## How to
 
 1. Download and install a [handwriting font](https://fonts.google.com/?category=Handwriting), or [create a font](#Creating-your-font) from your handwriting.
@@ -137,7 +143,7 @@ There's two noise map here, one for each axis. The amount to move the text with 
 
 Using the mask, some strikes are generated randomly and applied on top of the mistakes. The color of the strikes is automatically extracted from the surrounding texts.
 ![Misspelling strike](img/misspell-strike.png)
-The original strikes are generated with inverted colors for easier processing. Inverted not in the usual way how colors are inverted, but by taking the bitwise not. The strikes are also cropped with a convex hull of the text.
+The original strikes are generated with inverted colors for easier processing. The strikes are also cropped with a convex hull of the text.
 
 ### Getting lines of text
 
